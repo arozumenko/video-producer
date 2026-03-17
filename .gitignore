@@ -1,0 +1,8 @@
+workspace/
+*.mp4
+*.mp3
+*.wav
+*.srt
+.env
+.DS_Store
+__pycache__/
