@@ -1,5 +1,7 @@
 # Video Producer
 
+<img width="1753" height="946" alt="Screenshot 2026-03-17 at 13 27 25" src="https://github.com/user-attachments/assets/c77f7f55-03c8-4df1-a924-79556c970add" />
+
 AI-powered product demo video production pipeline for Claude Code. Automates the entire workflow from scripting to recording to voice-over narration.
 
 ## What It Does
