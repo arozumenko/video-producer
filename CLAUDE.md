@@ -6,9 +6,8 @@ AI-powered product demo video production pipeline using Claude Code agents and s
 
 ```
 video-producer/
-├── .claude/
-│   └── agents/
-│       └── video-producer/    ← orchestrator agent (full pipeline)
+├── agents/
+│   └── video-producer/        ← orchestrator agent (full pipeline)
 ├── skills/
 │   ├── demo-script/           ← co-author structured demo scripts
 │   ├── record-demo/           ← record browser demos (Playwright + ffmpeg)

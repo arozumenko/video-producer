@@ -70,7 +70,7 @@ Videos are saved to `workspace/<date>/`:
 
 ## Architecture
 
-- **Agent** (`.claude/agents/video-producer/`) — Orchestrator with creative decision-making. Manages discovery, exploration, scripting, recording, voice-over, and iteration.
+- **Agent** (`agents/video-producer/`) — Orchestrator with creative decision-making. Manages discovery, exploration, scripting, recording, voice-over, and iteration.
 - **Skills** (`skills/`) — Three focused skills that handle scripting, recording, and narration respectively.
 - **Browser Tools** — Playwright MCP server provides `browser_navigate`, `browser_click`, `browser_type`, `browser_take_screenshot`, `browser_snapshot` for product exploration and recording.
 - **Video Capture** — Hybrid approach: Playwright headful mode for browser automation + ffmpeg avfoundation for high-quality screen capture.
