@@ -1,12 +1,10 @@
 ---
 name: record-demo
-description: Record product demo videos with AI narration. Automates browser scenarios via Playwright, captures high-quality video via ffmpeg, and generates synchronized voice-over using ElevenLabs TTS.
-trigger: when user asks to "record a demo", "make a product video", "create a demo recording", "record a walkthrough", or "screen record with narration"
-dependencies:
-  python:
-    - ffmpeg
-    - playwright
-    - elevenlabs
+description: Record product demo videos with automated browser interaction and screen capture. Use when user asks to "record a demo", "make a product video", "create a demo recording", "record a walkthrough", or "screen record with narration". Captures H.264 video via Playwright headful + ffmpeg avfoundation with action timestamps for voice-over sync.
+compatibility: Requires ffmpeg with avfoundation (macOS), Playwright MCP server, and Screen Recording permission.
+metadata:
+  author: arozumenko
+  version: 1.0.0
 ---
 
 # Record Demo Skill
@@ -171,156 +169,18 @@ ffmpeg -i silent_video.mp4 \
 
 ### Multi-Monitor Setup
 
-**Problem**: Playwright opens windows on unpredictable monitors. ffmpeg avfoundation captures per-display. These must be coordinated.
+Run `python scripts/detect_displays.py` to detect monitors and ffmpeg device indices.
 
-**Solution: 3-layer approach**
-
-1. **Detect monitors** (run at skill start):
-   ```bash
-   # List displays with resolution and position
-   system_profiler SPDisplaysDataType 2>/dev/null | grep -E "Resolution|Main Display|Mirror"
-   
-   # More precise: use CoreGraphics
-   swift -e '
-   import CoreGraphics
-   let displays = CGGetActiveDisplayList(10)
-   // Returns display IDs with bounds (origin.x, origin.y, width, height)
-   // Display at origin (0,0) is the "main" display
-   // Secondary display might be at (1920, 0) or (-1920, 0) depending on arrangement
-   '
-   ```
-
-   **Python helper to detect displays:**
-   ```python
-   import subprocess, re
-   
-   def get_displays() -> list[dict]:
-       """Get display info via system_profiler."""
-       result = subprocess.run(
-           ["system_profiler", "SPDisplaysDataType"],
-           capture_output=True, text=True
-       )
-       # Parse resolution, position, Retina status
-       # Returns: [{"index": 0, "width": 3456, "height": 2234, "origin_x": 0, "retina": True}, ...]
-   ```
-
-2. **Map ffmpeg device index to target display**:
-   ```bash
-   ffmpeg -f avfoundation -list_devices true -i "" 2>&1 | grep "Capture screen"
-   # [6] Capture screen 0  ← typically main display
-   # [7] Capture screen 1  ← secondary display
-   ```
-   
-   Device index order matches `CGGetActiveDisplayList` order.
-   Ask user which monitor to use, or default to secondary (keep primary free for other work).
-
-3. **Force Playwright window to target monitor**:
-
-   **Method A: Chromium args (sometimes works)**
-   ```python
-   # If secondary monitor is at x=1920 in global coords:
-   browser = playwright.chromium.launch(
-       headless=False,
-       args=[
-           '--window-position=1920,0',  # global coords for secondary monitor
-           '--window-size=1920,1080',
-       ]
-   )
-   ```
-
-   **Method B: AppleScript reposition (reliable fallback)**
-   ```python
-   import subprocess, time
-   
-   # Launch browser first, wait for window to appear
-   # Then force-move it:
-   subprocess.run(['osascript', '-e', '''
-       tell application "System Events"
-           tell process "Chromium"
-               set position of window 1 to {1920, 0}
-               set size of window 1 to {1920, 1080}
-           end tell
-       end tell
-   '''])
-   ```
-   
-   **Method C: Full-screen on target display (cleanest for demos)**
-   ```python
-   # After navigation, press F11 or use Playwright to fullscreen
-   await page.evaluate("document.documentElement.requestFullscreen()")
-   # Or use AppleScript to fullscreen on specific display
-   ```
-
-4. **Retina / HiDPI handling**:
-   - macOS reports logical resolution (e.g. 1728x1117) but physical is 2x (3456x2234)
-   - Playwright viewport is in logical pixels
-   - ffmpeg avfoundation captures at physical resolution
-   - For 1080p output: set viewport to 1920x1080 logical, then ffmpeg will capture at 3840x2160, scale down:
-     ```bash
-     ffmpeg -f avfoundation -framerate 30 -i "7:none" \
-         -vf "scale=1920:1080" \
-         -c:v libx264 -crf 18 output.mp4
-     ```
-   - This actually gives BETTER quality — supersampled from Retina!
-
-5. **Recommended workflow for multi-monitor**:
-   ```
-   User's primary monitor: normal work (IDE, chat, etc.)
-   Secondary monitor: dedicated demo recording
-   
-   Agent:
-   1. Detects secondary monitor (index, resolution, global position)
-   2. Launches Playwright → moves window to secondary monitor
-   3. ffmpeg records secondary monitor only (Capture screen 1)
-   4. No crop needed — clean full-monitor capture
-   5. Scale from Retina to 1080p for crisp output
-   ```
+For detailed multi-monitor workflow (window positioning, Retina handling, AppleScript fallback), consult `references/multi-monitor.md`.
 
 ### macOS Screen Recording Permission
-- Terminal / iTerm needs "Screen Recording" permission in System Settings → Privacy & Security
-- ffmpeg inherits permission from the parent terminal process
+- Terminal / iTerm needs "Screen Recording" in System Settings -> Privacy & Security
+- ffmpeg inherits permission from parent terminal process
 - After granting, terminal app needs restart
-
-### ffmpeg avfoundation on macOS
-- Device listing: `ffmpeg -f avfoundation -list_devices true -i "" 2>&1`
-- Screen devices appear as "Capture screen 0", "Capture screen 1"
-- Cannot target specific window (unlike X11's `-window_id`)
-- Workaround: position Playwright window at known coordinates, use crop filter
 
 ### Playwright recordVideo (backup/fallback)
 - Built-in: `browser.new_context(record_video_dir="videos/")`
-- Outputs WebM, video available only after `context.close()`
-- Quality limitations: no bitrate control, scaling issues reported
-- Use as fallback if ffmpeg/avfoundation not available
-
-### Window Position Detection (macOS)
-```swift
-import CoreGraphics
-// Find Chromium window bounds
-if let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]] {
-    for w in windows {
-        if (w["kCGWindowOwnerName"] as? String)?.contains("Chrom") == true {
-            let bounds = w["kCGWindowBounds"] as? [String: Any]
-            // bounds["X"], bounds["Y"], bounds["Width"], bounds["Height"]
-        }
-    }
-}
-```
-
-### ElevenLabs Voice-Over
-- Use `sag` tool if available, or direct ElevenLabs Python SDK
-- Recommended voices for demos: "Rachel" (professional), "Adam" (casual)
-- Model: `eleven_turbo_v2` for fast generation, `eleven_multilingual_v2` for non-English
-- Output: MP3 segments per narration step
-
-## Available Tools on This Machine
-
-Verified present:
-- ✅ ffmpeg 8.0 (with avfoundation, libx264, libx265, aac)
-- ✅ avfoundation screen capture devices: [6] Capture screen 0, [7] Capture screen 1
-- ✅ ElevenLabs TTS (via `sag` / elevenlabs pip package)
-- ✅ Playwright MCP server (v1.53.0-alpha, running as MCP tool)
-- ⚠️ Screen Recording permission: granted but needs terminal restart
+- Lower quality than ffmpeg — use as fallback only
 
 ## Output
 

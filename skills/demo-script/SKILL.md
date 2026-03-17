@@ -1,10 +1,10 @@
 ---
 name: demo-script
-description: Co-author demo video scripts for product walkthroughs. Explores the live product via browser, understands the UI, then generates a structured recording script with actions, narration, and timing — ready for the /record-demo skill.
-trigger: when user asks to "write a demo script", "plan a product video", "script a walkthrough", "create a demo storyboard", or "plan a recording"
-dependencies:
-  python:
-    - playwright
+description: Co-author demo video scripts by exploring the live product via browser. Use when user asks to "write a demo script", "plan a product video", "script a walkthrough", "create a demo storyboard", or "plan a recording". Generates structured JSON scripts with actions, narration, timing, and highlight styles ready for /record-demo.
+compatibility: Requires Playwright MCP server for browser exploration.
+metadata:
+  author: arozumenko
+  version: 1.0.0
 ---
 
 # Demo Script Skill
@@ -74,109 +74,9 @@ Example exploration flow:
 
 ### Stage 3: Script Drafting
 
-Generate a structured script in JSON format:
+Generate a structured script in JSON format with `metadata` and `scenes` arrays.
 
-```json
-{
-  "metadata": {
-    "title": "Creating Your First Test Case",
-    "description": "Walk through creating a test case with steps, expected results, and folder organization.",
-    "audience": "prospective users",
-    "tone": "professional",
-    "estimated_duration_seconds": 90,
-    "resolution": {"width": 1920, "height": 1080},
-    "url": "https://staging.onetest.ai",
-    "auth": {
-      "type": "cookie",
-      "note": "Pre-authenticated session required"
-    }
-  },
-  "scenes": [
-    {
-      "id": "intro",
-      "title": "Opening — Dashboard Overview",
-      "steps": [
-        {
-          "action": "navigate",
-          "target": "/dashboard",
-          "narration": "Welcome to OneTest. Let's create your first test case.",
-          "pause_before_ms": 0,
-          "pause_after_ms": 2000,
-          "highlight": null
-        }
-      ]
-    },
-    {
-      "id": "navigate-to-test-cases",
-      "title": "Navigate to Test Cases",
-      "steps": [
-        {
-          "action": "click",
-          "selector": "[data-testid='sidebar-test-cases']",
-          "narration": "Open the Test Cases section from the sidebar.",
-          "pause_before_ms": 500,
-          "pause_after_ms": 1500,
-          "highlight": {
-            "selector": "[data-testid='sidebar-test-cases']",
-            "style": "pulse"
-          }
-        }
-      ]
-    },
-    {
-      "id": "create-test-case",
-      "title": "Create New Test Case",
-      "steps": [
-        {
-          "action": "click",
-          "selector": "button:has-text('Create')",
-          "narration": "Click Create to start a new test case.",
-          "pause_before_ms": 500,
-          "pause_after_ms": 2000,
-          "highlight": {
-            "selector": "button:has-text('Create')",
-            "style": "glow"
-          }
-        },
-        {
-          "action": "type",
-          "selector": "input[name='title']",
-          "text": "Login with valid credentials",
-          "typing_speed_ms": 50,
-          "narration": "Give it a descriptive title.",
-          "pause_before_ms": 500,
-          "pause_after_ms": 1000,
-          "highlight": null
-        },
-        {
-          "action": "type",
-          "selector": "textarea[name='description']",
-          "text": "Verify that users can log in with valid email and password.",
-          "typing_speed_ms": 40,
-          "narration": "Add a clear description of what this test case verifies.",
-          "pause_before_ms": 300,
-          "pause_after_ms": 1500,
-          "highlight": null
-        }
-      ]
-    },
-    {
-      "id": "outro",
-      "title": "Closing",
-      "steps": [
-        {
-          "action": "wait",
-          "duration_ms": 2000,
-          "narration": "And that's it — your first test case is ready. Explore more features in the documentation.",
-          "pause_before_ms": 0,
-          "pause_after_ms": 1500,
-          "highlight": null
-        }
-      ]
-    }
-  ]
-}
-```
+For the full JSON schema, action reference, and highlight styles, consult `references/script-format.md`.
 
 ### Stage 4: Review & Iterate
 
@@ -234,32 +134,11 @@ Once approved:
 
 ## Script Action Reference
 
-| Action | Fields | Description |
-|--------|--------|-------------|
-| `navigate` | `target` (path or full URL) | Go to a page |
-| `click` | `selector` | Click an element |
-| `type` | `selector`, `text`, `typing_speed_ms` | Type text with human-like speed |
-| `select` | `selector`, `value` | Select dropdown option |
-| `scroll` | `selector` (optional), `direction`, `amount` | Scroll page or element |
-| `hover` | `selector` | Hover over element (show tooltip/menu) |
-| `wait` | `duration_ms` | Just wait (for narration over static screen) |
-| `screenshot` | `name` | Save a named screenshot (for thumbnails) |
-| `drag` | `from_selector`, `to_selector` | Drag and drop |
-| `keyboard` | `key` (e.g. "Enter", "Escape", "Tab") | Press keyboard key |
+10 supported actions: `navigate`, `click`, `type`, `select`, `scroll`, `hover`, `wait`, `screenshot`, `drag`, `keyboard`.
 
-## Highlight Styles
+5 highlight styles: `pulse`, `glow`, `arrow`, `dim-others`, `zoom` (injected via CSS/JS).
 
-Visual emphasis injected via CSS during recording:
-
-| Style | Effect |
-|-------|--------|
-| `pulse` | Subtle pulsing border around element |
-| `glow` | Soft glow effect |
-| `arrow` | Animated arrow pointing to element |
-| `dim-others` | Dim everything except the target element |
-| `zoom` | Slight zoom into the element area |
-
-Implementation: inject CSS/JS via `page.evaluate()` before the action, remove after.
+Full reference with fields and examples in `references/script-format.md`.
 
 ## Narration Guidelines
 
